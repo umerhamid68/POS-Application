@@ -1,17 +1,3 @@
-// import { Html, Head, Main, NextScript } from "next/document";
-
-// export default function Document() {
-//   return (
-//     <Html lang="en">
-//       <Head />
-//       <body className="antialiased">
-//         <Main />
-//         <NextScript />
-//       </body>
-//     </Html>
-//   );
-// }
-
 import React from 'react';
 import { createCache, extractStyle, StyleProvider } from '@ant-design/cssinjs';
 import Document, { Head, Html, Main, NextScript } from 'next/document';
