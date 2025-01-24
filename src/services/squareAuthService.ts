@@ -1,5 +1,6 @@
 import { Client, Environment } from "square";
 import { OAuthConfig } from "next-auth/providers/oauth";
+import { SquareProfile } from "types";
 
 const callbackUrl = `${process.env.NEXTAUTH_URL}/api/auth/callback/square`;
 
@@ -7,18 +8,6 @@ const squareClient = new Client({
   environment: Environment.Sandbox,
   userAgentDetail: "user-agent-pos",
 });
-
-
-interface SquareProfile {
-  id: string;
-  name: string;
-  email: string;
-  merchant_id: string;
-  business_name?: string;
-  country?: string;
-  languageCode?: string;
-  currency?: string;
-}
 
 const SquareProvider: OAuthConfig<SquareProfile> = {
   id: "square",
@@ -88,14 +77,18 @@ const SquareProvider: OAuthConfig<SquareProfile> = {
       return { 
         id: tokens.merchant_id,
         name: `Square Merchant`,
-        merchant_id: tokens.merchant_id 
+        merchant_id: tokens.merchant_id ,
+        email: "testemail",
+        business_name: "testbusiness",
+        country: "testcountry",
       };
     }
   },
   profile: (profile) => ({
     id: profile.merchant_id,
     name: profile.name,
-    merchant_id: profile.merchant_id
+    merchantId: profile.merchant_id+" Merchant",
+    test: "test",
   }),
 };
 

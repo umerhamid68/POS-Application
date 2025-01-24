@@ -3,4 +3,4 @@ build
 coverage
 tailwind.config.ts
 next.config.ts
-.eslintrc.json
+eslint.config.mjs

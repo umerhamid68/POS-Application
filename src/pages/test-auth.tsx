@@ -42,7 +42,7 @@ export default function AuthTestPage() {
 
           <div>
             <h4>Raw Session Data:</h4>
-            <pre>{JSON.stringify(session, null, 2)}</pre>
+            <pre>{JSON.stringify(session, null, "\t")}</pre>
           </div>
         
       </Card>
