@@ -1,2 +1,2 @@
 import { SquareProfile } from "./squareProfile";
-export type { SquareProfile };
+export type { SquareProfile, DashboardProps };
