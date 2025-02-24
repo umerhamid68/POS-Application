@@ -36,7 +36,7 @@ export function LoginForm() {
               type="primary"
               size="large"
               icon={<ShopOutlined />}
-              onClick={() => signIn("square", { callbackUrl: "/dashboard" })}
+              onClick={() => signIn("square", { callbackUrl: "/home" })}
             >
               Sign in with Square
             </Button>
