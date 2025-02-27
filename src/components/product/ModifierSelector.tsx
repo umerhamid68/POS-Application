@@ -1,21 +1,26 @@
 import { Select, Typography } from "antd";
 import { CatalogObject } from "square";
+import { SelectedModifier } from "types/product";
 
 const { Text } = Typography;
 
 interface ModifierSelectorProps {
   modifierLists: CatalogObject[];
-  selectedModifiers: Record<string, string[]>;
+  selectedModifiers: SelectedModifier[];
   onChange: (listId: string, value: string[]) => void;
+  getSelectedModifierIds: (listId: string) => string[];
 }
 
-export function ModifierSelector({ modifierLists, selectedModifiers, onChange }: 
-    ModifierSelectorProps) {
+export function ModifierSelector({ 
+  modifierLists, 
+  selectedModifiers, 
+  onChange,
+  getSelectedModifierIds 
+}: ModifierSelectorProps) {
   return (
     <>
       {modifierLists.map((list) => {
         const modifiers = list.modifierListData?.modifiers || [];
-        
         if (modifiers.length === 0) return null;
         
         return (
@@ -24,7 +29,7 @@ export function ModifierSelector({ modifierLists, selectedModifiers, onChange }:
             <Select
               mode="multiple"
               placeholder={`Select ${list.modifierListData?.name || "options"}`}
-              value={selectedModifiers[list.id] || []}
+              value={getSelectedModifierIds(list.id)}
               onChange={(value) => onChange(list.id, value)}
               style={{ width: '100%', marginTop: '8px' }}
               options={modifiers.map(modifier => {

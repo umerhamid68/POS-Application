@@ -1,5 +1,5 @@
 import { Modal, Button, Space, Image, Divider } from "antd";
-import { Product, SelectedModifier } from "types/product";
+import { Product } from "types";
 import { CatalogObject } from "square";
 import { useProductModal } from "hooks";
 import { VariationSelector } from "components/product/VariationSelector";
@@ -28,32 +28,11 @@ export function ProductModal({
     totalPrice,
     handleVariationChange,
     handleModifierChange,
+    getSelectedModifierIds
   } = useProductModal({ visible, variations, modifierLists });
 
   const addToCartWithOptions = () => {
     if (!selectedVariation) return;
-    
-    //this basically flattens the modifier array to make it easier to handle and read for checkout
-    const flattenedModifiers: SelectedModifier[] = Object.entries(selectedModifiers).flatMap(
-      ([listId, modIds]) => {
-        const list = modifierLists.find(l => l.id === listId);
-        if (!list || !list.modifierListData) return [];
-        
-        return modIds.map(id => {
-          const modifier = list.modifierListData?.modifiers?.find(m => m.id === id);
-          if (!modifier || !modifier.modifierData) return null;
-          
-          return {
-            id,
-            name: modifier.modifierData.name,
-            price: modifier.modifierData.priceMoney ? 
-              Number(modifier.modifierData.priceMoney.amount) / 100 : 0,
-            listId,
-            listName: list.modifierListData?.name
-          };
-        }).filter((item): item is SelectedModifier => item !== null);
-      }
-    );
     
     onAddToCart({
       ...product,
@@ -64,7 +43,7 @@ export function ProductModal({
         price: selectedVariation.itemVariationData?.priceMoney ? 
           Number(selectedVariation.itemVariationData.priceMoney.amount) / 100 : 0
       } : undefined,
-      selectedModifiers: flattenedModifiers
+      selectedModifiers: selectedModifiers
     });
     
     onClose();
@@ -109,8 +88,9 @@ export function ProductModal({
 
         <ModifierSelector 
           modifierLists={modifierLists} 
-          selectedModifiers={selectedModifiers} 
-          onChange={handleModifierChange} 
+          selectedModifiers={selectedModifiers}
+          onChange={handleModifierChange}
+          getSelectedModifierIds={getSelectedModifierIds}
         />
       </Space>
     </Modal>
