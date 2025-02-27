@@ -25,7 +25,7 @@ const eslintConfig = [
       "max-len": [
         "warn",
         {
-          code: 90,
+          code: 100,
           ignoreComments: true,
           ignoreUrls: true,
           ignoreStrings: true,

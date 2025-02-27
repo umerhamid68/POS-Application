@@ -4,11 +4,13 @@ import { Product } from "types/product";
 
 interface ProductCardProps {
   product: Product;
-  onAddToCart?: (product: Product) => void;
+  onAddToCart: (product: Product) => void;
+  onClick: () => void;
 }
 
-export function ProductCard({ product, onAddToCart }: ProductCardProps) {
+export function ProductCard({ product, onAddToCart, onClick }: ProductCardProps) {
   return (
+    <div onClick={onClick}>
     <Card
       hoverable
       cover={
@@ -26,10 +28,11 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
       <Button
         type="primary"
         style={{ marginTop: 16, width: "100%" }}
-        onClick={() => onAddToCart && onAddToCart(product)}
+        onClick={() => onAddToCart(product)}
       >
         Add to Cart
       </Button>
     </Card>
+    </div>
   );
 }
