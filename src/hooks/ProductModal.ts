@@ -44,13 +44,26 @@ export function useProductModal({ visible, variations, modifierLists }: UseProdu
     const list = modifierLists.find(l => l.id === listId);
     if (!list || !list.modifierListData) return;
     
-    //this basically removes all the modifiers from the list
-    //console.log("Selected modifiers:", selectedModifiers);
-    const remainingModifiers = selectedModifiers.filter(mod => mod.listId !== listId);
-    //console.log("Remaining modifiers:", remainingModifiers);
+    //in case there are multiple modifier lists
+    const otherListModifiers = selectedModifiers.filter(mod => mod.listId !== listId);
+    console.log("Other list modifiers:", otherListModifiers);
     
-    //then we add the newly selected modifier
-    const newModifiers = selectedIds.map(id => {
+    //existing modifiers
+    const existingModifiersMap = new Map(
+      selectedModifiers
+        .filter(mod => mod.listId === listId)
+        .map(mod => [mod.id, mod])
+    );
+    console.log("Existing modifiers:", existingModifiersMap);
+    
+    //new modifiers
+    const updatedListModifiers = selectedIds.map(id => {
+      //if already have this modifier reuse it
+      if (existingModifiersMap.has(id)) {
+        return existingModifiersMap.get(id)!;
+      }
+      
+      //else new modifier created
       const modifier = list.modifierListData?.modifiers?.find(m => m.id === id);
       if (!modifier || !modifier.modifierData) return null;
       
@@ -63,11 +76,13 @@ export function useProductModal({ visible, variations, modifierLists }: UseProdu
         listName: list.modifierListData?.name || "Unknown"
       };
     }).filter((mod): mod is SelectedModifier => mod !== null);
-    //console.log("New modifiers:", newModifiers);
-
-    //then we concat the modifiers
-    setSelectedModifiers([...remainingModifiers, ...newModifiers]);
+    console.log("Updated list modifiers:", updatedListModifiers);
+    
+    //concatenate all modifiers
+    setSelectedModifiers([...otherListModifiers, ...updatedListModifiers]);
   };
+
+
 
   //get selected modifier ids for specific list
   const getSelectedModifierIds = (listId: string): string[] => {
