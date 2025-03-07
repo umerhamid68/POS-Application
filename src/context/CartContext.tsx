@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
-import { Product } from 'types/product';
+import { Product, SelectedModifier } from 'types/product';
 
 export interface CartItem extends Product {
   quantity: number;
@@ -8,10 +8,27 @@ export interface CartItem extends Product {
 interface CartContextType {
   items: CartItem[];
   addItem: (product: Product) => void;
-  updateQuantity: (productId: string, variationId: string | undefined, quantity: number) => void;
-  removeItem: (productId: string, variationId: string | undefined) => void;
-  isItemInCart: (productId: string, variationId: string | undefined) => boolean;
-  getItemQuantity: (productId: string, variationId: string | undefined) => number;
+  updateQuantity: (
+    productId: string, 
+    variationId: string | undefined, 
+    quantity: number,
+    modifiers?: SelectedModifier[]
+  ) => void;
+  removeItem: (
+    productId: string, 
+    variationId: string | undefined,
+    modifiers?: SelectedModifier[]
+  ) => void;
+  isItemInCart: (
+    productId: string, 
+    variationId: string | undefined,
+    modifiers?: SelectedModifier[]
+  ) => boolean;
+  getItemQuantity: (
+    productId: string, 
+    variationId: string | undefined,
+    modifiers?: SelectedModifier[]
+  ) => number;
   totalItems: number;
   subtotal: number;
   clearCart: () => void;
@@ -23,17 +40,36 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
 
   //unique key for each product variation
-  const getItemKey = (productId: string, variationId: string | undefined) => {
-    return `${productId}${variationId ? `-${variationId}` : ''}`;
+  const getItemKey = (productId: string, variationId: string | undefined, 
+    modifiers?: SelectedModifier[]) => {
+    let key = `${productId}${variationId ? `-${variationId}` : ''}`;
+    
+    if (modifiers && modifiers.length > 0) {
+      const modifierIds = modifiers
+        .map(mod => mod.id)
+        .sort()
+        .join('-');
+      key += `-mods:${modifierIds}`;
+    }
+    
+    return key;
   };
-  //update/add item in cart
+  
+  //add/update items in cart
   const addItem = (product: Product) => {
     setItems(prevItems => {
       const existingItemIndex = prevItems.findIndex(item => 
-        getItemKey(item.id, item.selectedVariation?.id) === 
-        getItemKey(product.id, product.selectedVariation?.id)
+        getItemKey(
+          item.id, 
+          item.selectedVariation?.id, 
+          item.selectedModifiers
+        ) === getItemKey(
+          product.id, 
+          product.selectedVariation?.id, 
+          product.selectedModifiers
+        )
       );
-
+  
       if (existingItemIndex >= 0) {
         const updatedItems = [...prevItems];
         updatedItems[existingItemIndex] = {
@@ -46,46 +82,67 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
     });
   };
-
+  
   //update item quantity
-  const updateQuantity = (productId: string, variationId: string | undefined, quantity: number) => {
+  const updateQuantity = (
+    productId: string, 
+    variationId: string | undefined, 
+    quantity: number,
+    modifiers?: SelectedModifier[]
+  ) => {
     setItems(prevItems => {
       if (quantity <= 0) {
         return prevItems.filter(item => 
-          getItemKey(item.id, item.selectedVariation?.id) !== getItemKey(productId, variationId)
+          getItemKey(item.id, item.selectedVariation?.id, item.selectedModifiers) !== 
+          getItemKey(productId, variationId, modifiers)
         );
       }
-
+  
       return prevItems.map(item => 
-        getItemKey(item.id, item.selectedVariation?.id) === getItemKey(productId, variationId)
+        getItemKey(item.id, item.selectedVariation?.id, item.selectedModifiers) === 
+        getItemKey(productId, variationId, modifiers)
           ? { ...item, quantity }
           : item
       );
     });
   };
-
-  const removeItem = (productId: string, variationId: string | undefined) => {
+  
+  //remove items
+  const removeItem = (
+    productId: string, 
+    variationId: string | undefined,
+    modifiers?: SelectedModifier[]
+  ) => {
     setItems(prevItems => 
       prevItems.filter(item => 
-        getItemKey(item.id, item.selectedVariation?.id) !== getItemKey(productId, variationId)
+        getItemKey(item.id, item.selectedVariation?.id, item.selectedModifiers) !== 
+        getItemKey(productId, variationId, modifiers)
       )
     );
   };
 
-  const isItemInCart = (productId: string, variationId: string | undefined) => {
+  const isItemInCart = (
+    productId: string, 
+    variationId: string | undefined,
+    modifiers?: SelectedModifier[]
+  ) => {
     return items.some(item => 
-      getItemKey(item.id, item.selectedVariation?.id) === getItemKey(productId, variationId)
+      getItemKey(item.id, item.selectedVariation?.id, item.selectedModifiers) === 
+      getItemKey(productId, variationId, modifiers)
     );
   };
 
-  //quantity of an item in cart
-  const getItemQuantity = (productId: string, variationId: string | undefined) => {
+  const getItemQuantity = (
+    productId: string, 
+    variationId: string | undefined,
+    modifiers?: SelectedModifier[]
+  ) => {
     const item = items.find(item => 
-      getItemKey(item.id, item.selectedVariation?.id) === getItemKey(productId, variationId)
+      getItemKey(item.id, item.selectedVariation?.id, item.selectedModifiers) === 
+      getItemKey(productId, variationId, modifiers)
     );
     return item?.quantity || 0;
   };
-
   const totalItems = items.reduce((total, item) => total + item.quantity, 0);
 
   const subtotal = items.reduce((total, item) => total + (item.price * item.quantity), 0);

@@ -1,10 +1,11 @@
-import { Modal, Button, Space, Image, Divider } from "antd";
+import { Modal, Button, Space, Image, Divider, Spin } from "antd";
 import { Product } from "types";
 import { CatalogObject } from "square";
 import { useProductModal } from "hooks";
 import { VariationSelector } from "components/product/VariationSelector";
 import { ModifierSelector } from "components/product/ModifierSelector";
-
+import { useCart } from "context/CartContext";
+import { PlusOutlined, MinusOutlined } from "@ant-design/icons";
 interface ProductModalProps {
   visible: boolean;
   onClose: () => void;
@@ -12,6 +13,7 @@ interface ProductModalProps {
   variations: CatalogObject[];
   modifierLists: CatalogObject[];
   onAddToCart: (product: Product) => void;
+  isLoading?: boolean;
 }
 
 export function ProductModal({
@@ -21,6 +23,7 @@ export function ProductModal({
   variations,
   modifierLists,
   onAddToCart,
+  isLoading=false,
 }: ProductModalProps) {
   const {
     selectedVariation,
@@ -30,6 +33,25 @@ export function ProductModal({
     handleModifierChange,
     getSelectedModifierIds
   } = useProductModal({ visible, variations, modifierLists });
+
+  const { 
+    isItemInCart, 
+    getItemQuantity, 
+    updateQuantity 
+  } = useCart();
+
+
+  const inCart = isItemInCart(
+    product.id, 
+    selectedVariation?.id,
+    selectedModifiers
+  );
+  
+  const quantity = getItemQuantity(
+    product.id, 
+    selectedVariation?.id,
+    selectedModifiers
+  );
 
   const addToCartWithOptions = () => {
     if (!selectedVariation) return;
@@ -45,30 +67,67 @@ export function ProductModal({
       } : undefined,
       selectedModifiers: selectedModifiers
     });
-    
-    onClose();
+    //onClose();
+  };
+
+  const handleIncrement = () => {
+    if (!selectedVariation) return;
+    updateQuantity(product.id, selectedVariation.id, quantity + 1, selectedModifiers);
+  };
+  
+  const handleDecrement = () => {
+    if (!selectedVariation) return;
+    updateQuantity(product.id, selectedVariation.id, Math.max(0, quantity - 1), selectedModifiers);
   };
 
   return (
+    
     <Modal
       title={product.name}
       open={visible}
       onCancel={onClose}
       footer={[
-        <Button key="back" onClick={onClose}>
-          Cancel
-        </Button>,
-        <Button
-          key="submit"
-          type="primary"
-          onClick={addToCartWithOptions}
-          disabled={!selectedVariation}
-        >
-          Add to Cart - ${totalPrice.toFixed(2)}
-        </Button>,
+        <div key="footer" style={{display: 'flex', justifyContent: 'space-between', width: '100%'}}>
+          <Button key="close" onClick={onClose}>
+            Close
+          </Button>
+          
+          {!inCart ? (
+            <Button 
+              key="addToCart" 
+              type="primary" 
+              onClick={addToCartWithOptions}
+              disabled={!selectedVariation}
+            >
+              Add to Cart - ${totalPrice.toFixed(2)}
+            </Button>
+          ) : (
+            <Space key="quantity" size="small">
+              <Button
+                icon={<MinusOutlined />}
+                onClick={handleDecrement}
+                disabled={quantity <= 1}
+              />
+              <text
+                style={{ width: "60px", textAlign: "center" }}
+              > {quantity} 
+              </text>
+              <Button
+                icon={<PlusOutlined />}
+                onClick={handleIncrement}
+              />
+            </Space>
+          )}
+        </div>
       ]}
     >
-      <Space direction="vertical" style={{ width: "100%" }}>
+      {isLoading ? (
+        <div style={{ textAlign: 'center', padding: '20px 0' }}>
+          <Spin tip="Loading product details..." />
+        </div>
+      ) :
+      
+      ( <Space direction="vertical" style={{ width: "100%" }}>
         {product.image && (
           <Image 
             src={product.image} 
@@ -93,6 +152,15 @@ export function ProductModal({
           getSelectedModifierIds={getSelectedModifierIds}
         />
       </Space>
+      )}
+      {inCart && (
+        <div style={{ marginTop: 16, textAlign: "center" }}>
+          <span style={{ color: "green" }}>
+            This item is in your cart with the selected options.
+          </span>
+        </div>
+      )}
+    
     </Modal>
   );
 }

@@ -145,6 +145,7 @@ export default function HomePage({ products }: HomePageProps) {
           variations={variations}
           modifierLists={modifierLists}
           onAddToCart={handleAddToCart}
+          isLoading={isLoadingDetails}
         />
       )}
 

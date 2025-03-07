@@ -13,12 +13,12 @@ export function CartItem({ item }: CartItemProps) {
 
   const handleQuantityChange = (value: number | null) => {
     if (value !== null) {
-      updateQuantity(item.id, item.selectedVariation?.id, value);
+      updateQuantity(item.id, item.selectedVariation?.id, value, item.selectedModifiers);
     }
   };
 
   const handleRemove = () => {
-    removeItem(item.id, item.selectedVariation?.id);
+    removeItem(item.id, item.selectedVariation?.id, item.selectedModifiers);
   };
 
   const displayName = item.selectedVariation 
