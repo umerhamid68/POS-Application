@@ -1,2 +1,4 @@
 import { SquareProfile } from "./squareProfile";
-export type { SquareProfile };
+import { Product, SelectedModifier, SelectedVariation } from "./product";
+export type { SquareProfile};
+export type { Product, SelectedModifier, SelectedVariation };

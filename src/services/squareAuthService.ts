@@ -9,6 +9,29 @@ const squareClient = new Client({
   userAgentDetail: "user-agent-pos",
 });
 
+//function to refresh an access token
+export async function refreshAccessToken(refreshToken: string) {
+  try {
+    const { result } = await squareClient.oAuthApi.obtainToken({
+      clientId: process.env.SQUARE_CLIENT_ID!,
+      clientSecret: process.env.SQUARE_CLIENT_SECRET!,
+      grantType: "refresh_token",
+      refreshToken,
+      redirectUri: callbackUrl,
+    });
+
+    return {
+      accessToken: result.accessToken!,
+      expiresAt: Date.parse(result.expiresAt!),
+      refreshToken: result.refreshToken!, 
+      merchantId: result.merchantId!,
+    };
+  } catch (error) {
+    console.error("Error refreshing access token:", error);
+    throw error;
+  }
+}
+
 const SquareProvider: OAuthConfig<SquareProfile> = {
   id: "square",
   name: "Square",
@@ -77,7 +100,7 @@ const SquareProvider: OAuthConfig<SquareProfile> = {
       return { 
         id: tokens.merchant_id,
         name: `Square Merchant`,
-        merchant_id: tokens.merchant_id ,
+        merchant_id: tokens.merchant_id,
         email: "testemail",
         business_name: "testbusiness",
         country: "testcountry",

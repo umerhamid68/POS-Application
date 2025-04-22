@@ -41,6 +41,23 @@ const nextConfig: NextConfig = {
     "rc-upload",
     "rc-util",
   ],
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'e7.pngegg.com',
+        port: '',
+        pathname: '/pngimages/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'items-images-sandbox.s3.us-west-2.amazonaws.com',
+        port: '',
+        pathname: '/files/**',
+      },
+    ],
+  },
 };
+
 
 export default nextConfig;
