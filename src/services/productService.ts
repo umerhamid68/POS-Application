@@ -6,6 +6,32 @@ const client = new Client({
   accessToken: process.env.SQUARE_ACCESS_TOKEN!,
 });
 
+//helper function to fetch images for products that have image IDs
+async function fetchProductImages(imageIds: string[]): Promise<Map<string, string>> {
+  if (!imageIds.length) return new Map();
+  
+  try {
+    const response = await client.catalogApi.batchRetrieveCatalogObjects({
+      objectIds: imageIds,
+      includeRelatedObjects: false,
+    });
+    
+    const imageMap = new Map<string, string>();
+    const images = response.result.objects || [];
+    
+    images.forEach(img => {
+      if (img.type === "IMAGE" && img.id && img.imageData?.url) {
+        imageMap.set(img.id, img.imageData.url);
+      }
+    });
+    //console.log("Image map:", imageMap); 
+    return imageMap;
+  } catch (error) {
+    console.error("Error fetching product images:", error);
+    return new Map();
+  }
+}
+
 export async function fetchProducts(): Promise<Product[]> {
   const response = await client.catalogApi.listCatalog();
   
@@ -23,6 +49,21 @@ export async function fetchProducts(): Promise<Product[]> {
       return map;
     }, new Map<string, ProductCategory>());
 
+  //all image IDs from products
+  const allImageIds: string[] = [];
+  objects.forEach(obj => {
+    if (obj.type === "ITEM" && obj.itemData?.imageIds) {
+      obj.itemData.imageIds.forEach(a => {
+          allImageIds.push(a);
+        }
+      );
+    }
+  });
+  //console.log("All image IDs:", allImageIds);
+
+  //all images in a single batch request
+  const imageUrlMap = await fetchProductImages(allImageIds);
+
   const products: Product[] = objects
     .filter(obj => obj.type === "ITEM")
     .map(obj => {
@@ -35,6 +76,15 @@ export async function fetchProducts(): Promise<Product[]> {
         variation?.itemVariationData?.priceMoney
       ) {
         price = Number(variation.itemVariationData.priceMoney.amount)/100;
+      }
+
+      let image = "https://e7.pngegg.com/pngimages/833/426/png-clipart-black-shopping-cart-icon-for-free-black-shopping-cart-thumbnail.png";
+      if (itemData?.imageIds?.length) {
+        const imageId = itemData.imageIds[0];
+        const imageUrl = imageUrlMap.get(imageId);
+        if (imageUrl) {
+          image = imageUrl;
+        }
       }
 
       const productCategories: ProductCategory[] = [];
@@ -57,8 +107,6 @@ export async function fetchProducts(): Promise<Product[]> {
           }
         });
       }
-      
-      const image = "https://e7.pngegg.com/pngimages/833/426/png-clipart-black-shopping-cart-icon-for-free-black-shopping-cart-thumbnail.png";
       
       return {
         id: obj.id,
@@ -93,13 +141,44 @@ export async function fetchProductDetails(productId: string) {
         }
         return map;
       }, new Map());
-      console.log("Categories:", categories);
+    
+    // //process images
+    // const images = data.relatedObjects
+    //   .filter((obj: CatalogObject) => obj.type === "IMAGE")
+    //   .reduce((map: Map<string, string>, image: CatalogObject) => {
+    //     if (image.id && image.imageData?.url) {
+    //       map.set(image.id, image.imageData.url);
+    //     }
+    //     return map;
+    //   }, new Map());
+    
+    // //update product with image URL
+    // if (data.objects?.[0]?.itemData) {
+    //   // if (data.objects[0].itemData.imageIds?.length) {
+    //   //   const imageId = data.objects[0].itemData.imageIds[0];
+    //   //   if (images.has(imageId)) {
+    //   //     data.objects[0].itemData.imageUrl = images.get(imageId);
+    //   //   }
+    //   // }
+      
+    //   //check variations for image IDs (in case of difference)
+    //   if (data.objects[0].itemData.variations) {
+    //     for (const variation of data.objects[0].itemData.variations) {
+    //       if (variation.itemVariationData?.imageIds?.length) {
+    //         const imageId = variation.itemVariationData.imageIds[0];
+    //         if (images.has(imageId)) {
+    //           variation.itemVariationData.imageUrl = images.get(imageId);
+    //         }
+    //       }
+    //     }
+    //   }
+    // }
 
+    // Update category names
     if (data.objects?.[0]?.itemData?.categories) {
       data.objects[0].itemData.categories.forEach((cat: ProductCategory) => {
         if (categories.has(cat.id)) {
           cat.name = categories.get(cat.id).name;
-          console.log("Category name:", cat.name);
         }
       });
     }
