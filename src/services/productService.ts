@@ -1,5 +1,7 @@
 import { CatalogObject, Client, Environment } from "square";
 import { Product, ProductCategory } from "types/product";
+import { TaxInfo } from "hooks/TaxManagement";
+import { DiscountInfo } from "hooks/DiscountManagement";
 
 const client = new Client({
   environment: Environment.Sandbox,
@@ -32,10 +34,110 @@ async function fetchProductImages(imageIds: string[]): Promise<Map<string, strin
   }
 }
 
+//helper function to extract tax info from related objects
+function extractTaxInfo(taxIds: string[] | undefined, 
+  taxObjects: CatalogObject[]): TaxInfo[] | undefined {
+  if (!taxIds || !taxIds.length) return undefined;
+  
+  const taxInfoArray = taxIds
+    .map(taxId => {
+      const taxObject = taxObjects.find(obj => 
+        obj.type === "TAX" && obj.id === taxId
+      );
+      
+      if (taxObject && taxObject.taxData) {
+        return {
+          id: taxObject.id,
+          name: taxObject.taxData.name || "Tax",
+          percentage: Number(taxObject.taxData.percentage) || 0,
+          inclusionType: taxObject.taxData.inclusionType || "ADDITIVE"
+        };
+      }
+      return null;
+    })
+    .filter(tax => tax !== null) as TaxInfo[];
+  
+  return taxInfoArray.length > 0 ? taxInfoArray : undefined;
+}
+
+//helper function to extract discount info from catalog objects
+function extractDiscountInfo(
+  objects: CatalogObject[]
+): { discounts: DiscountInfo[], productDiscountMap: Map<string, DiscountInfo[]> } {
+  //extract discount objects
+  const discountObjects = objects.filter(obj => obj.type === "DISCOUNT");
+  
+  //extract pricing rule objects
+  const pricingRuleObjects = objects.filter(obj => obj.type === "PRICING_RULE");
+  
+  //extract product set objects
+  const productSetObjects = objects.filter(obj => obj.type === "PRODUCT_SET");
+  
+  //create discount info objects
+  const discounts: DiscountInfo[] = discountObjects.map(obj => {
+    return {
+      id: obj.id!,
+      name: obj.discountData?.name || "Discount",
+      percentage: Number(obj.discountData?.percentage) || 0,
+      discountType: obj.discountData?.discountType || "FIXED_PERCENTAGE"
+    };
+  });
+  
+  //map discounts to products using pricing rules and product sets
+  const productDiscountMap = new Map<string, DiscountInfo[]>();
+  
+  pricingRuleObjects.forEach(rule => {
+    if (!rule.pricingRuleData?.discountId || !rule.pricingRuleData?.matchProductsId) return;
+    
+    const discountId = rule.pricingRuleData.discountId;
+    const productSetId = rule.pricingRuleData.matchProductsId;
+    
+    //find the discount
+    const discount = discounts.find(d => d.id === discountId);
+    if (!discount) return;
+    
+    //update discount with pricing rule info
+    discount.pricingRuleId = rule.id;
+    discount.productSetId = productSetId;
+    
+    //find the product set
+    const productSet = productSetObjects.find(ps => ps.id === productSetId);
+    if (!productSet || !productSet.productSetData) return;
+    
+    //check if the product set has specific product IDs
+    if (productSet.productSetData.productIdsAny) {
+      productSet.productSetData.productIdsAny.forEach(productId => {
+        if (!productDiscountMap.has(productId)) {
+          productDiscountMap.set(productId, []);
+        }
+        productDiscountMap.get(productId)!.push({...discount});
+      });
+    }
+    
+    //also check for variation IDs in the product set (for variation-specific discounts)
+    if (productSet.productSetData.productIdsAll) {
+      productSet.productSetData.productIdsAll.forEach(productId => {
+        if (!productDiscountMap.has(productId)) {
+          productDiscountMap.set(productId, []);
+        }
+        productDiscountMap.get(productId)!.push({...discount});
+      });
+    }
+  });
+  
+  return { discounts, productDiscountMap };
+}
+
 export async function fetchProducts(): Promise<Product[]> {
   const response = await client.catalogApi.listCatalog();
   
   const objects = response.result.objects || [];
+
+  //extract tax objects
+  const taxObjects = objects.filter(obj => obj.type === "TAX");
+
+  //extract discount info and product-discount mapping
+  const { discounts, productDiscountMap } = extractDiscountInfo(objects);
 
   const categories = objects
     .filter(obj => obj.type === "CATEGORY")
@@ -108,14 +210,52 @@ export async function fetchProducts(): Promise<Product[]> {
         });
       }
       
+      //extract tax info if available
+      const taxInfo = extractTaxInfo(itemData?.taxIds ?? undefined, taxObjects);
+      
+      //get discount info for this product
+      const discountInfo = productDiscountMap.get(obj.id!);
+      
+      //also check for discounts on variations (in case discount only exists on variations)
+      const variationDiscounts: DiscountInfo[] = [];
+      if (itemData?.variations) {
+        itemData.variations.forEach(variation => {
+          if (variation.id) {
+            const varDiscounts = productDiscountMap.get(variation.id);
+            if (varDiscounts) {
+              // Add variation ID to each discount for reference
+              varDiscounts.forEach(discount => {
+                variationDiscounts.push({
+                  ...discount,
+                  variationId: variation.id
+                });
+              });
+            }
+          }
+        });
+      }
+      
+      // // Combine product-level and variation-level discounts
+      // let allDiscounts: DiscountInfo[] | string;
+      // if ((discountInfo && discountInfo.length > 0) || variationDiscounts.length > 0) {
+      //   allDiscounts = [...(discountInfo || []), ...variationDiscounts];
+      // }
+      
       return {
         id: obj.id,
         name: itemData?.name ?? "Unknown Product",
         price,
         image,
-        categories: productCategories
+        categories: productCategories,
+        taxInfo, //add tax info to the product
+        discountInfo: (discountInfo && discountInfo.length > 0) || variationDiscounts.length > 0 
+          ? [...(discountInfo || []), ...variationDiscounts]
+          : null, //add discount info to product
       };
     });
+    
+  // console.log("Products:", products); 
+  // console.log("Product discounts:", products.map(p => p.discountInfo));
 
   return products;
 }

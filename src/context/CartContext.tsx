@@ -1,8 +1,12 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
 import { Product, SelectedModifier } from 'types/product';
+import { TaxInfo } from 'hooks/TaxManagement';
+import { DiscountInfo } from 'hooks/DiscountManagement';
 
 export interface CartItem extends Product {
   quantity: number;
+  taxInfo?: TaxInfo[]; //tax information for cart items
+  discountInfo?: DiscountInfo[]; //discount information for cart items
 }
 
 interface CartContextType {
@@ -32,6 +36,11 @@ interface CartContextType {
   totalItems: number;
   subtotal: number;
   clearCart: () => void;
+  getItemKey: (
+    productId: string, 
+    variationId: string | undefined,
+    modifiers?: SelectedModifier[]
+  ) => string; //getItemKey exposed for tax management
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -55,7 +64,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return key;
   };
   
-  //add/update items in cart
+  //add/update items
   const addItem = (product: Product) => {
     setItems(prevItems => {
       const existingItemIndex = prevItems.findIndex(item => 
@@ -74,11 +83,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const updatedItems = [...prevItems];
         updatedItems[existingItemIndex] = {
           ...updatedItems[existingItemIndex],
-          quantity: updatedItems[existingItemIndex].quantity + 1
+          quantity: updatedItems[existingItemIndex].quantity + 1,
+          //preserve existing tax info if available
+          taxInfo: updatedItems[existingItemIndex].taxInfo || product.taxInfo,
+          //preserve existing discount info if available
+          discountInfo: updatedItems[existingItemIndex].discountInfo || product.discountInfo
         };
         return updatedItems;
       } else {
-        return [...prevItems, { ...product, quantity: 1 }];
+        return [...prevItems, { 
+          ...product, 
+          quantity: 1,
+          taxInfo: product.taxInfo,
+          discountInfo: product.discountInfo
+        }];
       }
     });
   };
@@ -161,7 +179,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       getItemQuantity,
       totalItems,
       subtotal,
-      clearCart
+      clearCart,
+      getItemKey //expose getItemKey for tax management
     }}>
       {children}
     </CartContext.Provider>

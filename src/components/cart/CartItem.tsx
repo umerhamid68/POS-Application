@@ -1,14 +1,26 @@
-import { List, Button, InputNumber, Typography, Space } from 'antd';
-import { DeleteOutlined } from '@ant-design/icons';
+import { List, Button, InputNumber, Typography, Space, Switch, Tooltip, theme } from 'antd';
+import { DeleteOutlined, InfoCircleOutlined, GiftOutlined } from '@ant-design/icons';
 import { useCart, CartItem as CartItemType } from 'context/CartContext';
 
 const { Text } = Typography;
+const {useToken} = theme;
 
 interface CartItemProps {
   item: CartItemType;
+  taxEnabled?: boolean;
+  onTaxToggle?: () => void;
+  discountEnabled?: boolean;
+  onDiscountToggle?: () => void;
 }
 
-export function CartItem({ item }: CartItemProps) {
+export function CartItem({ 
+  item, 
+  taxEnabled, 
+  onTaxToggle,
+  discountEnabled,
+  onDiscountToggle
+}: CartItemProps) {
+  const {token} = useToken();
   const { updateQuantity, removeItem } = useCart();
 
   const handleQuantityChange = (value: number | null) => {
@@ -29,6 +41,13 @@ export function CartItem({ item }: CartItemProps) {
     ? item.selectedModifiers.map(mod => mod.name).join(', ')
     : '';
 
+  //check if item has valid tax info
+  const hasTaxInfo = item.taxInfo && Array.isArray(item.taxInfo) && item.taxInfo.length > 0;
+  
+  //check if item has valid discount info
+  const hasDiscountInfo = item.discountInfo && Array.isArray(item.discountInfo) 
+  && item.discountInfo.length > 0;
+
   return (
     <List.Item
       actions={[
@@ -42,11 +61,49 @@ export function CartItem({ item }: CartItemProps) {
       ]}
     >
       <List.Item.Meta
-        title={displayName}
+        title={
+          <Space>
+            {displayName}
+            {hasTaxInfo && (
+              <Tooltip title={`Tax: ${item.taxInfo?.map(tax => `${tax.name} (${tax.percentage}%)`).join(', ')}`}>
+                <InfoCircleOutlined />
+              </Tooltip>
+            )}
+            {hasDiscountInfo && (
+              <Tooltip title={`Available Discounts: ${item.discountInfo?.map(discount => `${discount.name} (${discount.percentage}%)`).join(', ')}`}>
+                <GiftOutlined style={{ color: discountEnabled ? token.colorSuccess : undefined }} />
+              </Tooltip>
+            )}
+          </Space>
+        }
         description={
           <Space direction="vertical" size={0}>
             {modifiersText && <Text type="secondary">{modifiersText}</Text>}
             <Text type="secondary">${item.price.toFixed(2)} each</Text>
+            
+            {/*only show tax toggle if the item has tax info AND onTaxToggle is provided */}
+            {hasTaxInfo && onTaxToggle && (
+              <Space size="small">
+                <Text type="secondary">Apply Tax:</Text>
+                <Switch 
+                  size="small" 
+                  checked={taxEnabled} 
+                  onChange={onTaxToggle} 
+                />
+              </Space>
+            )}
+            
+            {/*only show discount toggle if the item has discount info AND onDiscountToggle is provided */}
+            {hasDiscountInfo && onDiscountToggle && (
+              <Space size="small">
+                <Text type="secondary">Apply Discount:</Text>
+                <Switch 
+                  size="small" 
+                  checked={discountEnabled} 
+                  onChange={onDiscountToggle} 
+                />
+              </Space>
+            )}
           </Space>
         }
       />
