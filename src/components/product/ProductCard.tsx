@@ -1,6 +1,7 @@
 import { Card, Button } from "antd";
 import Image from "next/image";
 import { Product } from "types/product";
+import { AppButton } from "components/Button/CommonButton";
 
 
 interface ProductCardProps {
@@ -27,12 +28,11 @@ export function ProductCard({ product, onClick }: ProductCardProps) {
     >
       <Card.Meta title={product.name} description={`$${product.price.toFixed(2)}`} />
       
-      <Button
-        type="primary"
-        style={{ marginTop: 16, width: "100%" }}
+      <AppButton
+        variant="block" 
       >
         View Details
-      </Button>
+      </AppButton>
     </Card>
   );
 }

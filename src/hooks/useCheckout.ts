@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { CartItem } from 'context/CartContext';
+import { OrderLineItem, OrderLineItemPricingBlocklists } from 'square';
 
 export interface OrderSummary {
   subtotal: number;
@@ -29,12 +30,14 @@ export function useCheckout() {
     error: null
   });
 
+  const [preparedLineItems, setPreparedLineItems] = useState<OrderLineItem[]>([]);
+
   const calculateOrder = useCallback(async ({
     locationId,
     items,
     globalTaxEnabled,
     itemTaxEnabled,
-    globalDiscountEnabled,
+    globalDiscountEnabled = false,
     itemDiscountEnabled = {},
   }: CalculateOrderOptions) => {
     if (items.length === 0) {
@@ -46,6 +49,7 @@ export function useCheckout() {
         isLoading: false,
         error: null
       });
+      setPreparedLineItems([]);
       return null;
     }
     
@@ -83,13 +87,7 @@ export function useCheckout() {
         return null;
       }
       
-      //calculate discount amount based on individual item settings
-      /*this manual discount calculation approach is used because if we try to use 
-      the tax approach of removing items from the finalLineItems based on if discount
-      is enabled or not, we would turn off tax for that item as well.*/
-      let calculatedDiscount = 0;
-      
-      //map items to line items for the API
+      //map items to line items for the API with blocklists
       const lineItems = items.map(item => {
         //key for this item
         const itemKey = `${item.id}${item.selectedVariation?.id ? `-${item.selectedVariation.id}` : ''}`;
@@ -104,50 +102,51 @@ export function useCheckout() {
           ? itemDiscountEnabled[itemKey] 
           : globalDiscountEnabled;
         
-        //calculate discount for this item if applicable
-        if (applyDiscountForItem && item.discountInfo && item.discountInfo.length > 0) {
-          const firstDiscount = item.discountInfo[0];
-          const itemTotal = item.price * item.quantity;
-          const discountAmount = (itemTotal * firstDiscount.percentage) / 100;
-          calculatedDiscount += discountAmount;
+        //create blocklists for taxes and discounts if needed
+        const pricingBlocklists: OrderLineItemPricingBlocklists = {};
+        
+        //add tax blocklist if taxes are disabled for this item
+        if (!applyTaxForItem && item.taxInfo && item.taxInfo.length > 0) {
+          pricingBlocklists.blockedTaxes = item.taxInfo.map(tax => ({
+            uid: `blocked-tax-${tax.id}`,
+            taxCatalogObjectId: tax.id
+          }));
         }
         
-        return {
+        //add discount blocklist if discounts are disabled for this item
+        if (!applyDiscountForItem && item.discountInfo && item.discountInfo.length > 0) {
+          pricingBlocklists.blockedDiscounts = item.discountInfo.map(discount => ({
+            uid: `blocked-discount-${discount.id}`,
+            discountCatalogObjectId: discount.id
+          }));
+        }
+        
+        const lineItem: OrderLineItem = {
           quantity: item.quantity.toString(),
           catalogObjectId: item.selectedVariation?.id || item.id,
-          //include tax IDs if taxes are enabled for this item and it has tax info
-          appliedTaxes: (applyTaxForItem && item.taxInfo && item.taxInfo.length > 0) 
-            ? item.taxInfo.map(tax => ({ taxUid: tax.id })) 
-            : undefined,
-          //flag to track tax enabled
-          _hasTaxEnabled: applyTaxForItem,
-          //flag to track discount enabled
-          _hasDiscountEnabled: applyDiscountForItem
         };
+        
+        //only add pricing blocklists if there are blocklists to add
+        if (Object.keys(pricingBlocklists).length > 0) {
+          lineItem.pricingBlocklists = pricingBlocklists;
+        }
+        
+        return lineItem;
       });
+      setPreparedLineItems(lineItems);
       
-      //for individual tax mode, filter to only include items with tax enabled
-      const taxFilteredLineItems = !globalTaxEnabled && hasIndividualTaxSettings
-        ? lineItems.filter(item => item._hasTaxEnabled)
-        : lineItems;
-      
-      //if no items have tax enabled in individual mode, set tax to zero
-      if (!globalTaxEnabled && hasIndividualTaxSettings && taxFilteredLineItems.length === 0) {
-        const total = fullSubtotal - calculatedDiscount;
+      //if no taxes or discounts are enabled at all, calculate manually
+      if (!anyTaxEnabled && !anyDiscountEnabled) {
         setOrderSummary({
           subtotal: fullSubtotal,
           tax: 0,
-          discount: calculatedDiscount,
-          total,
+          discount: 0,
+          total: fullSubtotal,
           isLoading: false,
           error: null
         });
         return null;
       }
-      
-      //remove the flags before sending to API
-      const finalLineItems = 
-      taxFilteredLineItems.map(({ _hasTaxEnabled, _hasDiscountEnabled, ...item }) => item);
       
       const response = await fetch('/api/checkout/calculate', {
         method: 'POST',
@@ -156,9 +155,7 @@ export function useCheckout() {
         },
         body: JSON.stringify({
           locationId,
-          lineItems: finalLineItems,
-          autoApplyTaxes: anyTaxEnabled, // Changed from true to anyTaxEnabled
-          autoApplyDiscounts: anyDiscountEnabled
+          lineItems,
         }),
       });
       
@@ -174,11 +171,15 @@ export function useCheckout() {
         ? Number(data.order.totalTaxMoney.amount) / 100 
         : 0;
       
-      //discount from calculation
-      const discount = calculatedDiscount;
+      //discount from the Square API response
+      const discount = data.order?.totalDiscountMoney?.amount
+        ? Number(data.order.totalDiscountMoney.amount) / 100
+        : 0;
       
-      //total as subtotal + tax - discount
-      const total = fullSubtotal + tax - discount;
+      //total from the Square API response
+      const total = data.order?.totalMoney?.amount
+        ? Number(data.order.totalMoney.amount) / 100
+        : fullSubtotal + tax - discount;
       
       setOrderSummary({
         subtotal: fullSubtotal,
@@ -203,6 +204,7 @@ export function useCheckout() {
 
   return {
     orderSummary,
-    calculateOrder
+    calculateOrder,
+    preparedLineItems
   };
 }

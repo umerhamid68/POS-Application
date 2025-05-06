@@ -1,3 +1,5 @@
+'use client';
+
 import { Layout, Typography, theme, Card, Descriptions, Spin } from "antd";
 import { LogoutButton } from "components";
 import { useSession } from "next-auth/react";
@@ -44,10 +46,10 @@ export function Dashboard() {
           <p>session: {JSON.stringify(session, null, "\t")} </p>
           <Descriptions bordered>
             <Descriptions.Item label="Merchant ID">
-              {session?.merchantId}
+              {session?.user?.merchantId}
             </Descriptions.Item>
             <Descriptions.Item label="Name">
-              {session?.user.name}
+              {session?.user?.name}
             </Descriptions.Item>
             <Descriptions.Item label="Test">
               {session?.test}

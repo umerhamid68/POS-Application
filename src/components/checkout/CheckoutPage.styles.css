@@ -1,0 +1,8 @@
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+.item {
+    font-weight: bold;
+}

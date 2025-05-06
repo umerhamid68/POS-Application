@@ -1,3 +1,4 @@
+'use client'
 import { createContext, useContext, useState, ReactNode } from 'react';
 import { Product, SelectedModifier } from 'types/product';
 import { TaxInfo } from 'hooks/TaxManagement';

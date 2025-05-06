@@ -22,12 +22,14 @@ const theme: ThemeConfig = {
   },
   components: {
     Card: {
-      padding: 24,
+      padding: 0,
       borderRadiusLG: 28,
     },
     Button: {
       borderRadius: 6,
       controlHeightLG: 48,
+      paddingInline: 32,
+
     },
     Typography: {
       titleMarginTop: 0,
@@ -35,7 +37,7 @@ const theme: ThemeConfig = {
     },
     Layout: {
       bodyBg: '#f0f2f5',        
-    }
+    },
   }
 };
 

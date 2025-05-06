@@ -1,11 +1,12 @@
-import { Modal, Button, Space, Image, Divider, Spin } from "antd";
+import { Modal, Space, Image, Divider, Spin } from "antd";
 import { Product } from "types";
 import { CatalogObject } from "square";
 import { useProductModal } from "hooks";
 import { VariationSelector } from "components/product/VariationSelector";
 import { ModifierSelector } from "components/product/ModifierSelector";
 import { useCart } from "context/CartContext";
-import { PlusOutlined, MinusOutlined } from "@ant-design/icons";
+import { AppButton } from "components/Button/CommonButton";
+import { QuantityInput } from "components/QuantityInput/QuantityInput";
 interface ProductModalProps {
   visible: boolean;
   onClose: () => void;
@@ -88,33 +89,26 @@ export function ProductModal({
       onCancel={onClose}
       footer={[
         <div key="footer" style={{display: 'flex', justifyContent: 'space-between', width: '100%'}}>
-          <Button key="close" onClick={onClose}>
+          <AppButton key="close" onClick={onClose}>
             Close
-          </Button>
+          </AppButton>
           
           {!inCart ? (
-            <Button 
+            <AppButton 
               key="addToCart" 
-              type="primary" 
+              variant="primary" 
               onClick={addToCartWithOptions}
               disabled={!selectedVariation}
             >
               Add to Cart - ${totalPrice.toFixed(2)}
-            </Button>
+            </AppButton>
           ) : (
             <Space key="quantity" size="small">
-              <Button
-                icon={<MinusOutlined />}
-                onClick={handleDecrement}
-                disabled={quantity <= 1}
-              />
-              <text
-                style={{ width: "60px", textAlign: "center" }}
-              > {quantity} 
-              </text>
-              <Button
-                icon={<PlusOutlined />}
-                onClick={handleIncrement}
+              <QuantityInput
+                value={quantity}
+                min={1}
+                max={99}
+                onChange={q => updateQuantity(product.id, selectedVariation?.id, q, selectedModifiers)}
               />
             </Space>
           )}
@@ -123,9 +117,13 @@ export function ProductModal({
     >
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: '20px 0' }}>
-          <Spin tip="Loading product details..." />
+          <Spin>
+            <div style={{ padding: '50px', textAlign: 'center' }}>
+              Loading product details...
+            </div>
+          </Spin>
         </div>
-      ) :
+      ) : 
       
       ( <Space direction="vertical" style={{ width: "100%" }}>
         {product.image && (

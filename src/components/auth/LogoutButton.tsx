@@ -1,3 +1,4 @@
+'use client'
 import { Button } from "antd";
 import { signOut } from "next-auth/react";
 import { LogoutOutlined } from "@ant-design/icons";
